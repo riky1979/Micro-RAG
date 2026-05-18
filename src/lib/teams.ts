@@ -21,6 +21,40 @@ export async function requireTeam(slug: string): Promise<Team> {
   return team;
 }
 
+/** 팀 전체 목록을 반환한다 (어드민 전용). */
+export async function listAllTeams(): Promise<Team[]> {
+  const { data, error } = await getSupabase()
+    .from("teams")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`팀 목록 조회 실패: ${error.message}`);
+  return (data as Team[]) ?? [];
+}
+
+/** 팀의 LLM 프로바이더·모델 설정을 변경한다 (어드민 전용). */
+export async function updateTeamModel(
+  slug: string,
+  llm_provider: string | null,
+  llm_model: string | null,
+): Promise<Team> {
+  const { data, error } = await getSupabase()
+    .from("teams")
+    .update({ llm_provider, llm_model })
+    .eq("slug", slug)
+    .select("*")
+    .single();
+
+  if (error) throw new Error(`팀 모델 설정 실패: ${error.message}`);
+  return data as Team;
+}
+
+/** 팀과 소속 문서를 삭제한다 (어드민 전용). */
+export async function deleteTeam(slug: string): Promise<void> {
+  const { error } = await getSupabase().from("teams").delete().eq("slug", slug);
+  if (error) throw new Error(`팀 삭제 실패: ${error.message}`);
+}
+
 /** 새 팀을 생성한다. 같은 slug가 이미 있으면 409. */
 export async function createTeam(slug: string, name: string): Promise<Team> {
   if (await getTeamBySlug(slug)) {

@@ -54,6 +54,8 @@ export interface Team {
   slug: string;
   name: string;
   created_at: string;
+  llm_provider: string | null;
+  llm_model: string | null;
 }
 
 export interface DocumentRecord {

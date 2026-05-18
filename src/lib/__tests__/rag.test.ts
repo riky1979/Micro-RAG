@@ -1,21 +1,25 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("../anthropic", () => ({
-  structureInput: vi.fn(),
-  generateAnswer: vi.fn(),
-}));
+vi.mock("../llm", () => ({ getProviderForTeam: vi.fn() }));
 vi.mock("../openai", () => ({ embed: vi.fn() }));
 vi.mock("../teams", () => ({ requireTeam: vi.fn() }));
 vi.mock("../supabase", () => ({ getSupabase: vi.fn() }));
 
-import { generateAnswer, structureInput } from "../anthropic";
+import { getProviderForTeam } from "../llm";
 import { embed } from "../openai";
 import { answerQuestion, injectDocument, listRecentDocuments } from "../rag";
 import { getSupabase } from "../supabase";
 import { requireTeam } from "../teams";
 import type { StructuredDoc } from "../types";
 
-const TEAM = { id: "team-1", slug: "club", name: "Club", created_at: "2026-05-19" };
+const TEAM = {
+  id: "team-1",
+  slug: "club",
+  name: "Club",
+  created_at: "2026-05-19",
+  llm_provider: null,
+  llm_model: null,
+};
 
 const STRUCTURED: StructuredDoc = {
   category: "schedule",
@@ -25,10 +29,21 @@ const STRUCTURED: StructuredDoc = {
   effective_date: null,
 };
 
+let mockStructureInput: ReturnType<typeof vi.fn>;
+let mockGenerateAnswer: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
+
+  mockStructureInput = vi.fn();
+  mockGenerateAnswer = vi.fn();
+
   vi.mocked(requireTeam).mockResolvedValue(TEAM);
   vi.mocked(embed).mockResolvedValue([0.1, 0.2, 0.3]);
+  vi.mocked(getProviderForTeam).mockReturnValue({
+    structureInput: mockStructureInput,
+    generateAnswer: mockGenerateAnswer,
+  });
 });
 
 describe("injectDocument", () => {
@@ -43,7 +58,7 @@ describe("injectDocument", () => {
   }
 
   test("구조화 → 임베딩 → 저장 후 id와 구조화 결과를 반환한다", async () => {
-    vi.mocked(structureInput).mockResolvedValue(STRUCTURED);
+    mockStructureInput.mockResolvedValue(STRUCTURED);
     const { insert } = mockInsert();
 
     const result = await injectDocument("club", "이번 주 합주 토요일 3시 사당으로 변경");
@@ -53,13 +68,11 @@ describe("injectDocument", () => {
       content: expect.stringContaining("합주 일정 변경"),
       structured: STRUCTURED,
     });
-    expect(structureInput).toHaveBeenCalledWith("이번 주 합주 토요일 3시 사당으로 변경");
+    expect(mockStructureInput).toHaveBeenCalledWith("이번 주 합주 토요일 3시 사당으로 변경");
 
-    // 임베딩은 buildContent 결과(평탄화 텍스트)로 호출되어야 한다
     const embeddedText = vi.mocked(embed).mock.calls[0][0];
     expect(embeddedText).toContain("장소: 사당 연습실 A룸");
 
-    // insert payload 검증
     const payload = insert.mock.calls[0][0];
     expect(payload).toMatchObject({
       team_id: "team-1",
@@ -70,7 +83,7 @@ describe("injectDocument", () => {
   });
 
   test("저장 실패 시 에러를 던진다", async () => {
-    vi.mocked(structureInput).mockResolvedValue(STRUCTURED);
+    mockStructureInput.mockResolvedValue(STRUCTURED);
     const single = vi.fn().mockResolvedValue({ data: null, error: { message: "db down" } });
     vi.mocked(getSupabase).mockReturnValue({
       from: vi.fn().mockReturnValue({
@@ -79,6 +92,13 @@ describe("injectDocument", () => {
     } as never);
 
     await expect(injectDocument("club", "텍스트")).rejects.toThrow("문서 저장 실패");
+  });
+
+  test("embed 실패 시 에러를 전파한다", async () => {
+    mockStructureInput.mockResolvedValue(STRUCTURED);
+    vi.mocked(embed).mockRejectedValue(new Error("OpenAI 오류"));
+
+    await expect(injectDocument("club", "텍스트")).rejects.toThrow("OpenAI 오류");
   });
 });
 
@@ -95,7 +115,7 @@ describe("answerQuestion", () => {
     ];
     const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
     vi.mocked(getSupabase).mockReturnValue({ rpc } as never);
-    vi.mocked(generateAnswer).mockResolvedValue("토요일 오후 3시 사당 연습실 A룸입니다.");
+    mockGenerateAnswer.mockResolvedValue("토요일 오후 3시 사당 연습실 A룸입니다.");
 
     const result = await answerQuestion("club", "이번 주 어디서 모여?");
 
@@ -104,7 +124,7 @@ describe("answerQuestion", () => {
       p_team_id: "team-1",
       match_count: 5,
     });
-    expect(generateAnswer).toHaveBeenCalledWith(
+    expect(mockGenerateAnswer).toHaveBeenCalledWith(
       "이번 주 어디서 모여?",
       expect.arrayContaining([expect.objectContaining({ id: "doc-1", distance: 0.12 })]),
     );
@@ -115,11 +135,11 @@ describe("answerQuestion", () => {
   test("검색 결과가 없어도 빈 출처로 답변 생성을 호출한다", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
     vi.mocked(getSupabase).mockReturnValue({ rpc } as never);
-    vi.mocked(generateAnswer).mockResolvedValue("아직 그 정보는 등록되지 않았어요.");
+    mockGenerateAnswer.mockResolvedValue("아직 그 정보는 등록되지 않았어요.");
 
     const result = await answerQuestion("club", "주차장 있어?");
 
-    expect(generateAnswer).toHaveBeenCalledWith("주차장 있어?", []);
+    expect(mockGenerateAnswer).toHaveBeenCalledWith("주차장 있어?", []);
     expect(result.sources).toEqual([]);
   });
 
@@ -128,15 +148,6 @@ describe("answerQuestion", () => {
     vi.mocked(getSupabase).mockReturnValue({ rpc } as never);
 
     await expect(answerQuestion("club", "질문")).rejects.toThrow("벡터 검색 실패");
-  });
-});
-
-describe("injectDocument - 에러 경로", () => {
-  test("embed 실패 시 에러를 전파한다", async () => {
-    vi.mocked(structureInput).mockResolvedValue(STRUCTURED);
-    vi.mocked(embed).mockRejectedValue(new Error("OpenAI 오류"));
-
-    await expect(injectDocument("club", "텍스트")).rejects.toThrow("OpenAI 오류");
   });
 });
 

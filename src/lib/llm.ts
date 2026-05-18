@@ -1,0 +1,19 @@
+import { getEnv } from "./config";
+import { AnthropicProvider } from "./providers/anthropic-provider";
+import { OpenAIProvider } from "./providers/openai-provider";
+import type { RetrievedSource, StructuredDoc, Team } from "./types";
+
+export interface LLMProvider {
+  structureInput(text: string): Promise<StructuredDoc>;
+  generateAnswer(question: string, sources: RetrievedSource[]): Promise<string>;
+}
+
+export function getProviderForTeam(team: Team): LLMProvider {
+  const env = getEnv();
+  const provider = team.llm_provider ?? env.DEFAULT_LLM_PROVIDER;
+
+  if (provider === "openai") {
+    return new OpenAIProvider(team.llm_model ?? env.OPENAI_CHAT_MODEL);
+  }
+  return new AnthropicProvider(team.llm_model ?? env.ANTHROPIC_MODEL);
+}

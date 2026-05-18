@@ -1,5 +1,5 @@
-import { generateAnswer, structureInput } from "./anthropic";
 import { MATCH_COUNT } from "./config";
+import { getProviderForTeam } from "./llm";
 import { embed } from "./openai";
 import { buildContent } from "./structuring";
 import { getSupabase } from "./supabase";
@@ -26,8 +26,9 @@ export async function injectDocument(
   text: string,
 ): Promise<InjectResult> {
   const team = await requireTeam(teamSlug);
+  const provider = getProviderForTeam(team);
 
-  const structured = await structureInput(text);
+  const structured = await provider.structureInput(text);
   const content = buildContent(structured);
   const embedding = await embed(content);
 
@@ -57,6 +58,7 @@ export async function answerQuestion(
   question: string,
 ): Promise<AnswerResult> {
   const team = await requireTeam(teamSlug);
+  const provider = getProviderForTeam(team);
 
   const queryEmbedding = await embed(question);
 
@@ -84,7 +86,7 @@ export async function answerQuestion(
     }),
   );
 
-  const answer = await generateAnswer(question, sources);
+  const answer = await provider.generateAnswer(question, sources);
   return { answer, sources };
 }
 
