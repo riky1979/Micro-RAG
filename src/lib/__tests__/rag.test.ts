@@ -10,7 +10,7 @@ vi.mock("../supabase", () => ({ getSupabase: vi.fn() }));
 
 import { generateAnswer, structureInput } from "../anthropic";
 import { embed } from "../openai";
-import { answerQuestion, injectDocument } from "../rag";
+import { answerQuestion, injectDocument, listRecentDocuments } from "../rag";
 import { getSupabase } from "../supabase";
 import { requireTeam } from "../teams";
 import type { StructuredDoc } from "../types";
@@ -121,5 +121,68 @@ describe("answerQuestion", () => {
 
     expect(generateAnswer).toHaveBeenCalledWith("주차장 있어?", []);
     expect(result.sources).toEqual([]);
+  });
+
+  test("RPC 실패 시 에러를 던진다", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "rpc failed" } });
+    vi.mocked(getSupabase).mockReturnValue({ rpc } as never);
+
+    await expect(answerQuestion("club", "질문")).rejects.toThrow("벡터 검색 실패");
+  });
+});
+
+describe("injectDocument - 에러 경로", () => {
+  test("embed 실패 시 에러를 전파한다", async () => {
+    vi.mocked(structureInput).mockResolvedValue(STRUCTURED);
+    vi.mocked(embed).mockRejectedValue(new Error("OpenAI 오류"));
+
+    await expect(injectDocument("club", "텍스트")).rejects.toThrow("OpenAI 오류");
+  });
+});
+
+describe("listRecentDocuments", () => {
+  const DOC = {
+    id: "d1",
+    team_id: "team-1",
+    raw_input: "원문",
+    category: "schedule",
+    structured: STRUCTURED,
+    content: "내용",
+    created_at: "2026-05-01",
+  };
+
+  test("팀의 최근 문서 목록을 반환한다", async () => {
+    const limit = vi.fn().mockResolvedValue({ data: [DOC], error: null });
+    const order = vi.fn().mockReturnValue({ limit });
+    const eq = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ eq });
+    vi.mocked(getSupabase).mockReturnValue({ from: vi.fn().mockReturnValue({ select }) } as never);
+
+    const result = await listRecentDocuments("club");
+
+    expect(result).toEqual([DOC]);
+    expect(limit).toHaveBeenCalledWith(10);
+  });
+
+  test("limit 파라미터를 그대로 전달한다", async () => {
+    const limit = vi.fn().mockResolvedValue({ data: [], error: null });
+    const order = vi.fn().mockReturnValue({ limit });
+    const eq = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ eq });
+    vi.mocked(getSupabase).mockReturnValue({ from: vi.fn().mockReturnValue({ select }) } as never);
+
+    await listRecentDocuments("club", 3);
+
+    expect(limit).toHaveBeenCalledWith(3);
+  });
+
+  test("DB 오류 시 에러를 던진다", async () => {
+    const limit = vi.fn().mockResolvedValue({ data: null, error: { message: "db error" } });
+    const order = vi.fn().mockReturnValue({ limit });
+    const eq = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ eq });
+    vi.mocked(getSupabase).mockReturnValue({ from: vi.fn().mockReturnValue({ select }) } as never);
+
+    await expect(listRecentDocuments("club")).rejects.toThrow("문서 목록 조회 실패");
   });
 });
