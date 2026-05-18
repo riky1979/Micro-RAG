@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --color-surface: oklch(98.5% 0.008 85);
+  --color-surface-raised: oklch(100% 0 0);
+  --color-ink: oklch(22% 0.02 60);
+  --color-ink-soft: oklch(46% 0.02 60);
+  --color-line: oklch(90% 0.012 75);
+  --color-accent: oklch(64% 0.16 48);
+  --color-accent-soft: oklch(94% 0.04 60);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Pretendard",
+    "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@theme inline {
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-line: var(--color-line);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --font-sans: var(--font-sans);
+}
+
+* {
+  min-width: 0;
+}
+
+html,
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: oklch(100% 0 0);
+}
