@@ -6,6 +6,7 @@ import type { RetrievedSource, StructuredDoc, Team } from "./types";
 export interface LLMProvider {
   structureInput(text: string): Promise<StructuredDoc>;
   generateAnswer(question: string, sources: RetrievedSource[]): Promise<string>;
+  generateAnswerStream(question: string, sources: RetrievedSource[]): ReadableStream<string>;
 }
 
 export function getProviderForTeam(team: Team): LLMProvider {

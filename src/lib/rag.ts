@@ -90,6 +90,57 @@ export async function answerQuestion(
   return { answer, sources };
 }
 
+/**
+ * 스트리밍 답변: 출처를 먼저 전송 후 LLM 응답을 NDJSON 청크로 스트리밍.
+ * 프로토콜: {"type":"sources","sources":[...]}\n  {"type":"chunk","text":"..."}\n  {"type":"done"}\n
+ */
+export async function streamAnswer(teamSlug: string, question: string): Promise<Response> {
+  const team = await requireTeam(teamSlug);
+  const provider = getProviderForTeam(team);
+  const queryEmbedding = await embed(question);
+
+  const { data, error } = await getSupabase().rpc("match_documents", {
+    query_embedding: queryEmbedding,
+    p_team_id: team.id,
+    match_count: MATCH_COUNT,
+  });
+
+  if (error) throw new Error(`벡터 검색 실패: ${error.message}`);
+
+  const sources: RetrievedSource[] = (data ?? []).map(
+    (row: { id: string; content: string; category: Category; structured: StructuredDoc; distance: number }) => ({
+      id: row.id,
+      content: row.content,
+      category: row.category,
+      structured: row.structured,
+      distance: row.distance,
+    }),
+  );
+
+  const llmStream = provider.generateAnswerStream(question, sources);
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode(JSON.stringify({ type: "sources", sources }) + "\n"));
+      try {
+        const reader = llmStream.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          controller.enqueue(encoder.encode(JSON.stringify({ type: "chunk", text: value }) + "\n"));
+        }
+      } catch {
+        controller.enqueue(encoder.encode(JSON.stringify({ type: "error", message: "답변 생성 중 오류가 발생했습니다." }) + "\n"));
+      }
+      controller.enqueue(encoder.encode(JSON.stringify({ type: "done" }) + "\n"));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+}
+
 /** 팀 소속 문서 하나를 삭제한다. 팀 소속이 아닌 문서는 404. */
 export async function deleteDocument(teamSlug: string, documentId: string): Promise<void> {
   const team = await requireTeam(teamSlug);

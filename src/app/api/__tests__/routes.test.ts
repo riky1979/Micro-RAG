@@ -9,11 +9,11 @@ vi.mock("next/server", () => ({
   },
 }));
 vi.mock("@/lib/teams", () => ({ createTeam: vi.fn() }));
-vi.mock("@/lib/rag", () => ({ injectDocument: vi.fn(), answerQuestion: vi.fn() }));
+vi.mock("@/lib/rag", () => ({ injectDocument: vi.fn(), streamAnswer: vi.fn() }));
 
 import { AppError } from "@/lib/errors";
 import { createTeam } from "@/lib/teams";
-import { answerQuestion, injectDocument } from "@/lib/rag";
+import { injectDocument, streamAnswer } from "@/lib/rag";
 import { POST as teamsPost } from "../teams/route";
 import { POST as injectPost } from "../inject/route";
 import { POST as queryPost } from "../query/route";
@@ -101,17 +101,21 @@ describe("POST /api/inject", () => {
 });
 
 describe("POST /api/query", () => {
-  const ANSWER_RESULT = { answer: "사당입니다", sources: [] };
+  const encoder = new TextEncoder();
 
-  test("유효한 요청 → 200과 답변", async () => {
-    vi.mocked(answerQuestion).mockResolvedValue(ANSWER_RESULT);
-    const res = (await queryPost(
-      makeRequest({ teamSlug: "club", question: "어디서 모여?" }),
-    )) as MockResponse;
+  test("유효한 요청 → 200 스트림 응답", async () => {
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON.stringify({ type: "done" }) + "\n"));
+        controller.close();
+      },
+    });
+    vi.mocked(streamAnswer).mockResolvedValue(new Response(body, { status: 200 }));
+
+    const res = await queryPost(makeRequest({ teamSlug: "club", question: "어디서 모여?" }));
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(ANSWER_RESULT);
-    expect(answerQuestion).toHaveBeenCalledWith("club", "어디서 모여?");
+    expect(streamAnswer).toHaveBeenCalledWith("club", "어디서 모여?");
   });
 
   test("빈 question → 400", async () => {
@@ -128,7 +132,7 @@ describe("POST /api/query", () => {
   });
 
   test("서비스 오류 (AppError 404) → 404", async () => {
-    vi.mocked(answerQuestion).mockRejectedValue(new AppError(404, "팀 없음"));
+    vi.mocked(streamAnswer).mockRejectedValue(new AppError(404, "팀 없음"));
     const res = (await queryPost(
       makeRequest({ teamSlug: "ghost", question: "질문" }),
     )) as MockResponse;

@@ -93,4 +93,38 @@ export class OpenAIProvider implements LLMProvider {
 
     return res.choices[0]?.message?.content?.trim() ?? "";
   }
+
+  generateAnswerStream(question: string, sources: RetrievedSource[]): ReadableStream<string> {
+    const context = sources.length
+      ? sources.map((s, i) => `[${i + 1}] (${s.category}) ${s.content}`).join("\n")
+      : "(등록된 관련 정보 없음)";
+
+    const streamPromise = getClient().chat.completions.create({
+      model: this.model,
+      max_tokens: 1024,
+      stream: true,
+      messages: [
+        { role: "system", content: ANSWER_SYSTEM },
+        {
+          role: "user",
+          content: `다음은 우리 모임의 등록된 정보입니다.\n\n${context}\n\n---\n질문: ${question}`,
+        },
+      ],
+    });
+
+    return new ReadableStream<string>({
+      async start(controller) {
+        try {
+          const stream = await streamPromise;
+          for await (const chunk of stream) {
+            const text = chunk.choices[0]?.delta?.content;
+            if (text) controller.enqueue(text);
+          }
+          controller.close();
+        } catch (err) {
+          controller.error(err);
+        }
+      },
+    });
+  }
 }

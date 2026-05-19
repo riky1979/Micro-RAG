@@ -6,7 +6,7 @@ import type { RetrievedSource } from "@/lib/types";
 
 type ChatMessage =
   | { role: "user"; text: string }
-  | { role: "assistant"; text: string; sources: RetrievedSource[] }
+  | { role: "assistant"; text: string; sources: RetrievedSource[]; streaming?: boolean }
   | { role: "error"; text: string };
 
 const SUGGESTIONS = [
@@ -23,7 +23,7 @@ export function AskChat({ teamSlug }: { teamSlug: string }) {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, busy]);
+  }, [messages]);
 
   async function ask(question: string) {
     const trimmed = question.trim();
@@ -33,27 +33,75 @@ export function AskChat({ teamSlug }: { teamSlug: string }) {
     setInput("");
     setBusy(true);
 
+    // 스트리밍 placeholder 먼저 추가
+    setMessages((m) => [...m, { role: "assistant", text: "", sources: [], streaming: true }]);
+
     try {
       const res = await fetch("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ teamSlug, question: trimmed }),
       });
-      const data = await res.json();
-      if (!res.ok) {
+
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}));
         setMessages((m) => [
-          ...m,
+          ...m.slice(0, -1),
           { role: "error", text: data.error ?? "답변을 가져오지 못했습니다." },
         ]);
         return;
       }
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", text: data.answer, sources: data.sources ?? [] },
-      ]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as
+            | { type: "sources"; sources: RetrievedSource[] }
+            | { type: "chunk"; text: string }
+            | { type: "done" }
+            | { type: "error"; message: string };
+
+          if (event.type === "sources") {
+            setMessages((m) => {
+              const msgs = [...m];
+              const last = msgs[msgs.length - 1];
+              if (last?.role === "assistant") msgs[msgs.length - 1] = { ...last, sources: event.sources };
+              return msgs;
+            });
+          } else if (event.type === "chunk") {
+            setMessages((m) => {
+              const msgs = [...m];
+              const last = msgs[msgs.length - 1];
+              if (last?.role === "assistant") msgs[msgs.length - 1] = { ...last, text: last.text + event.text };
+              return msgs;
+            });
+          } else if (event.type === "error") {
+            setMessages((m) => [...m.slice(0, -1), { role: "error", text: event.message }]);
+          }
+        }
+      }
+
+      // 스트리밍 완료
+      setMessages((m) => {
+        const msgs = [...m];
+        const last = msgs[msgs.length - 1];
+        if (last?.role === "assistant") msgs[msgs.length - 1] = { ...last, streaming: false };
+        return msgs;
+      });
     } catch {
       setMessages((m) => [
-        ...m,
+        ...m.slice(0, -1),
         { role: "error", text: "네트워크 오류가 발생했습니다." },
       ]);
     } finally {
@@ -89,9 +137,6 @@ export function AskChat({ teamSlug }: { teamSlug: string }) {
             {messages.map((msg, i) => (
               <MessageBubble key={i} msg={msg} />
             ))}
-            {busy && (
-              <p className="text-sm text-ink-soft">AI 비서가 찾아보는 중…</p>
-            )}
           </div>
         )}
         <div ref={endRef} />
@@ -144,7 +189,16 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div className="max-w-[85%]">
       <div className="rounded-2xl rounded-bl-md border border-line bg-surface-raised px-4 py-3 text-sm leading-relaxed text-ink">
-        {msg.text}
+        {msg.text === "" && msg.streaming ? (
+          <span className="text-ink-soft">AI 비서가 찾아보는 중…</span>
+        ) : (
+          <>
+            {msg.text}
+            {msg.streaming && (
+              <span className="ml-0.5 inline-block animate-pulse text-ink-soft">▍</span>
+            )}
+          </>
+        )}
       </div>
       {msg.sources.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">

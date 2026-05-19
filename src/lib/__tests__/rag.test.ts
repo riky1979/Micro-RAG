@@ -43,6 +43,7 @@ beforeEach(() => {
   vi.mocked(getProviderForTeam).mockReturnValue({
     structureInput: mockStructureInput,
     generateAnswer: mockGenerateAnswer,
+    generateAnswerStream: vi.fn(),
   });
 });
 
