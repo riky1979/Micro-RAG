@@ -62,6 +62,27 @@ export function InjectConsole({
     }
   }
 
+  async function handleDelete(docId: string) {
+    if (!confirm("이 문서를 삭제할까요? 되돌릴 수 없어요.")) return;
+    setError(null);
+
+    try {
+      const res = await fetch("/api/inject", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teamSlug, documentId: docId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("네트워크 오류가 발생했습니다.");
+    }
+  }
+
   return (
     <div className="space-y-8">
       <section>
@@ -119,6 +140,7 @@ export function InjectConsole({
                 key={doc.id}
                 doc={doc.structured}
                 meta={formatDate(doc.created_at)}
+                onDelete={() => handleDelete(doc.id)}
               />
             ))}
           </div>

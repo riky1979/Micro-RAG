@@ -5,9 +5,11 @@ import type { StructuredDoc } from "@/lib/types";
 export function StructuredCard({
   doc,
   meta,
+  onDelete,
 }: {
   doc: StructuredDoc;
   meta?: string;
+  onDelete?: () => void;
 }) {
   const cat = categoryMeta[doc.category];
   const entities = Object.entries(doc.entities);
@@ -22,6 +24,18 @@ export function StructuredCard({
           <span className="text-xs text-ink-soft">{doc.effective_date}</span>
         )}
         {meta && <span className="ml-auto text-xs text-ink-soft">{meta}</span>}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="문서 삭제"
+            className={`text-xs font-semibold text-ink-soft transition hover:text-red-600 ${
+              meta ? "" : "ml-auto"
+            }`}
+          >
+            삭제
+          </button>
+        )}
       </div>
 
       <h3 className="mt-3 font-bold text-ink">{doc.title}</h3>

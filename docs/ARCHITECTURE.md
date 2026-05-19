@@ -33,7 +33,10 @@ tests/e2e/                # Playwright E2E
        → Claude 구조화 → buildContent() → OpenAI 임베딩 → Supabase documents
 
 조회:  멤버 질문 → POST /api/query → answerQuestion()
-       → OpenAI 임베딩 → match_documents()(pgvector, 팀 범위) → Claude 답변
+       → OpenAI 임베딩 → match_documents()(pgvector, 팀 범위)
+       → 관련도 임계값 필터 → Claude 답변
+
+삭제:  문서 카드 → DELETE /api/inject → deleteDocument() → Supabase
 ```
 
 ## 상태 관리

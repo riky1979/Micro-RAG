@@ -10,7 +10,12 @@ vi.mock("../supabase", () => ({ getSupabase: vi.fn() }));
 
 import { generateAnswer, structureInput } from "../anthropic";
 import { embed } from "../openai";
-import { answerQuestion, injectDocument, listRecentDocuments } from "../rag";
+import {
+  answerQuestion,
+  deleteDocument,
+  injectDocument,
+  listRecentDocuments,
+} from "../rag";
 import { getSupabase } from "../supabase";
 import { requireTeam } from "../teams";
 import type { StructuredDoc } from "../types";
@@ -112,6 +117,22 @@ describe("answerQuestion", () => {
     expect(result.sources).toHaveLength(1);
   });
 
+  test("임계값보다 먼 문서는 출처에서 제외한다", async () => {
+    const rows = [
+      { id: "near", content: "가까운 문서", category: "schedule", structured: STRUCTURED, distance: 0.2 },
+      { id: "far", content: "먼 문서", category: "general", structured: STRUCTURED, distance: 0.95 },
+    ];
+    const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
+    vi.mocked(getSupabase).mockReturnValue({ rpc } as never);
+    vi.mocked(generateAnswer).mockResolvedValue("답변");
+
+    const result = await answerQuestion("club", "질문");
+
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0].id).toBe("near");
+    expect(vi.mocked(generateAnswer).mock.calls[0][1]).toHaveLength(1);
+  });
+
   test("검색 결과가 없어도 빈 출처로 답변 생성을 호출한다", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
     vi.mocked(getSupabase).mockReturnValue({ rpc } as never);
@@ -184,5 +205,33 @@ describe("listRecentDocuments", () => {
     vi.mocked(getSupabase).mockReturnValue({ from: vi.fn().mockReturnValue({ select }) } as never);
 
     await expect(listRecentDocuments("club")).rejects.toThrow("문서 목록 조회 실패");
+  });
+});
+
+describe("deleteDocument", () => {
+  test("id와 team_id 조건으로 문서를 삭제한다", async () => {
+    const eqTeam = vi.fn().mockResolvedValue({ error: null });
+    const eqId = vi.fn().mockReturnValue({ eq: eqTeam });
+    const del = vi.fn().mockReturnValue({ eq: eqId });
+    vi.mocked(getSupabase).mockReturnValue({
+      from: vi.fn().mockReturnValue({ delete: del }),
+    } as never);
+
+    await deleteDocument("club", "doc-1");
+
+    expect(eqId).toHaveBeenCalledWith("id", "doc-1");
+    expect(eqTeam).toHaveBeenCalledWith("team_id", "team-1");
+  });
+
+  test("DB 오류 시 에러를 던진다", async () => {
+    const eqTeam = vi.fn().mockResolvedValue({ error: { message: "db down" } });
+    const del = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({ eq: eqTeam }),
+    });
+    vi.mocked(getSupabase).mockReturnValue({
+      from: vi.fn().mockReturnValue({ delete: del }),
+    } as never);
+
+    await expect(deleteDocument("club", "doc-1")).rejects.toThrow("문서 삭제 실패");
   });
 });

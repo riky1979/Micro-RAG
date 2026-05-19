@@ -32,3 +32,5 @@ export function getEnv(): Env {
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 export const EMBEDDING_DIMENSIONS = 1536;
 export const MATCH_COUNT = 5;
+// 코사인 거리(0=동일, 2=정반대) 컷오프. 이보다 먼 문서는 답변 근거에서 제외한다.
+export const MATCH_DISTANCE_THRESHOLD = 0.6;
