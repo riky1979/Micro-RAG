@@ -44,7 +44,10 @@ function getClient(): OpenAI {
 }
 
 export class OpenAIProvider implements LLMProvider {
-  constructor(private readonly model: string) {}
+  constructor(
+    private readonly model: string,
+    private readonly systemPrompt: string | null = null,
+  ) {}
 
   async structureInput(text: string): Promise<StructuredDoc> {
     const res = await getClient().chat.completions.create({
@@ -75,6 +78,7 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   async generateAnswer(question: string, sources: RetrievedSource[]): Promise<string> {
+    const system = this.systemPrompt ?? ANSWER_SYSTEM;
     const context = sources.length
       ? sources.map((s, i) => `[${i + 1}] (${s.category}) ${s.content}`).join("\n")
       : "(등록된 관련 정보 없음)";
@@ -83,7 +87,7 @@ export class OpenAIProvider implements LLMProvider {
       model: this.model,
       max_tokens: 1024,
       messages: [
-        { role: "system", content: ANSWER_SYSTEM },
+        { role: "system", content: system },
         {
           role: "user",
           content: `다음은 우리 모임의 등록된 정보입니다.\n\n${context}\n\n---\n질문: ${question}`,
@@ -95,6 +99,7 @@ export class OpenAIProvider implements LLMProvider {
   }
 
   generateAnswerStream(question: string, sources: RetrievedSource[]): ReadableStream<string> {
+    const system = this.systemPrompt ?? ANSWER_SYSTEM;
     const context = sources.length
       ? sources.map((s, i) => `[${i + 1}] (${s.category}) ${s.content}`).join("\n")
       : "(등록된 관련 정보 없음)";
@@ -104,7 +109,7 @@ export class OpenAIProvider implements LLMProvider {
       max_tokens: 1024,
       stream: true,
       messages: [
-        { role: "system", content: ANSWER_SYSTEM },
+        { role: "system", content: system },
         {
           role: "user",
           content: `다음은 우리 모임의 등록된 정보입니다.\n\n${context}\n\n---\n질문: ${question}`,

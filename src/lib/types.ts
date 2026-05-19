@@ -56,6 +56,7 @@ export interface Team {
   created_at: string;
   llm_provider: string | null;
   llm_model: string | null;
+  system_prompt: string | null;
 }
 
 export interface DocumentRecord {

@@ -32,20 +32,23 @@ export async function listAllTeams(): Promise<Team[]> {
   return (data as Team[]) ?? [];
 }
 
-/** 팀의 LLM 프로바이더·모델 설정을 변경한다 (어드민 전용). */
-export async function updateTeamModel(
+/** 팀의 LLM 설정(프로바이더·모델·시스템 프롬프트)을 변경한다 (어드민 전용). */
+export async function updateTeamSettings(
   slug: string,
-  llm_provider: string | null,
-  llm_model: string | null,
+  settings: {
+    llm_provider: string | null;
+    llm_model: string | null;
+    system_prompt: string | null;
+  },
 ): Promise<Team> {
   const { data, error } = await getSupabase()
     .from("teams")
-    .update({ llm_provider, llm_model })
+    .update(settings)
     .eq("slug", slug)
     .select("*")
     .single();
 
-  if (error) throw new Error(`팀 모델 설정 실패: ${error.message}`);
+  if (error) throw new Error(`팀 설정 변경 실패: ${error.message}`);
   return data as Team;
 }
 

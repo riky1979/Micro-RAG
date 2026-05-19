@@ -19,21 +19,25 @@ function buildUserMessage(question: string, sources: RetrievedSource[]): string 
 }
 
 export class AnthropicProvider implements LLMProvider {
-  constructor(private readonly model: string) {}
+  constructor(
+    private readonly model: string,
+    private readonly systemPrompt: string | null = null,
+  ) {}
 
   structureInput(text: string): Promise<StructuredDoc> {
     return structureInput(text, this.model);
   }
 
   generateAnswer(question: string, sources: RetrievedSource[]): Promise<string> {
-    return generateAnswer(question, sources, this.model);
+    return generateAnswer(question, sources, this.model, this.systemPrompt ?? undefined);
   }
 
   generateAnswerStream(question: string, sources: RetrievedSource[]): ReadableStream<string> {
+    const system = this.systemPrompt ?? ANSWER_SYSTEM;
     const sdkStream = getStreamClient().messages.stream({
       model: this.model,
       max_tokens: 1024,
-      system: [{ type: "text", text: ANSWER_SYSTEM, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: buildUserMessage(question, sources) }],
     });
 

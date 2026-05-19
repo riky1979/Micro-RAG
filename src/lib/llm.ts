@@ -12,9 +12,10 @@ export interface LLMProvider {
 export function getProviderForTeam(team: Team): LLMProvider {
   const env = getEnv();
   const provider = team.llm_provider ?? env.DEFAULT_LLM_PROVIDER;
+  const systemPrompt = team.system_prompt ?? null;
 
   if (provider === "openai") {
-    return new OpenAIProvider(team.llm_model ?? env.OPENAI_CHAT_MODEL);
+    return new OpenAIProvider(team.llm_model ?? env.OPENAI_CHAT_MODEL, systemPrompt);
   }
-  return new AnthropicProvider(team.llm_model ?? env.ANTHROPIC_MODEL);
+  return new AnthropicProvider(team.llm_model ?? env.ANTHROPIC_MODEL, systemPrompt);
 }

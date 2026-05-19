@@ -38,8 +38,10 @@ export async function generateAnswer(
   question: string,
   sources: RetrievedSource[],
   model?: string,
+  systemPrompt?: string,
 ): Promise<string> {
   const resolvedModel = model ?? getEnv().ANTHROPIC_MODEL;
+  const resolvedSystem = systemPrompt ?? ANSWER_SYSTEM;
   const context = sources.length
     ? sources
         .map((s, i) => `[${i + 1}] (${s.category}) ${s.content}`)
@@ -49,7 +51,7 @@ export async function generateAnswer(
   const res = await getClient().messages.create({
     model: resolvedModel,
     max_tokens: 1024,
-    system: [{ type: "text", text: ANSWER_SYSTEM, cache_control: { type: "ephemeral" } }],
+    system: [{ type: "text", text: resolvedSystem, cache_control: { type: "ephemeral" } }],
     messages: [
       {
         role: "user",
