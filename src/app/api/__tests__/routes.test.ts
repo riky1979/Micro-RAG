@@ -9,20 +9,24 @@ vi.mock("next/server", () => ({
   },
 }));
 vi.mock("@/lib/teams", () => ({ createTeam: vi.fn() }));
-vi.mock("@/lib/rag", () => ({ injectDocument: vi.fn(), answerQuestion: vi.fn() }));
+vi.mock("@/lib/rag", () => ({
+  injectDocument: vi.fn(),
+  answerQuestion: vi.fn(),
+  deleteDocument: vi.fn(),
+}));
 
 import { AppError } from "@/lib/errors";
 import { createTeam } from "@/lib/teams";
-import { answerQuestion, injectDocument } from "@/lib/rag";
+import { answerQuestion, deleteDocument, injectDocument } from "@/lib/rag";
 import { POST as teamsPost } from "../teams/route";
-import { POST as injectPost } from "../inject/route";
+import { DELETE as injectDelete, POST as injectPost } from "../inject/route";
 import { POST as queryPost } from "../query/route";
 
 type MockResponse = { body: unknown; status: number };
 
-function makeRequest(body: unknown): Request {
+function makeRequest(body: unknown, method = "POST"): Request {
   return new Request("http://localhost", {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -95,6 +99,37 @@ describe("POST /api/inject", () => {
     vi.mocked(injectDocument).mockRejectedValue(new AppError(404, "팀 없음"));
     const res = (await injectPost(
       makeRequest({ teamSlug: "ghost", text: "내용" }),
+    )) as MockResponse;
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /api/inject", () => {
+  const UUID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+
+  test("유효한 요청 → 200과 ok", async () => {
+    vi.mocked(deleteDocument).mockResolvedValue(undefined);
+    const res = (await injectDelete(
+      makeRequest({ teamSlug: "club", documentId: UUID }, "DELETE"),
+    )) as MockResponse;
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(deleteDocument).toHaveBeenCalledWith("club", UUID);
+  });
+
+  test("UUID 형식이 아닌 documentId → 400", async () => {
+    const res = (await injectDelete(
+      makeRequest({ teamSlug: "club", documentId: "not-a-uuid" }, "DELETE"),
+    )) as MockResponse;
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  test("존재하지 않는 팀 (AppError 404) → 404", async () => {
+    vi.mocked(deleteDocument).mockRejectedValue(new AppError(404, "팀 없음"));
+    const res = (await injectDelete(
+      makeRequest({ teamSlug: "ghost", documentId: UUID }, "DELETE"),
     )) as MockResponse;
     expect(res.status).toBe(404);
   });

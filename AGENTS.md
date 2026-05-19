@@ -65,24 +65,17 @@ LLM 코딩 실수를 줄이기 위한 행동 지침. 필요하면 프로젝트�
 **이 지침이 효과적일 때:** 더 적은 불필요한 변경, 과도한 복잡성으로 인한 더 적은 재작성, 그리고 실수 후가 아닌 구현 전에 명확화 질문이 나올 때입니다.
 
 
-## 5. Project Documentation Routing -> 우리 프로젝트 방향에 맞게 수정필요
+## 5. 프로젝트 문서 라우팅
 
-YongsBot Intraday 문서는 주제별로 나뉘어 있습니다. 모든 문서를 기본으로 읽지 마세요. 먼저 `README.md`로 현재 범위와 문서 목록을 확인한 뒤, 작업과 직접 관련된 문서만 추가로 여세요.
+Micro-RAG 문서는 주제별로 나뉘어 있습니다. 모든 문서를 기본으로 읽지 마세요. 먼저 `README.md`로 현재 범위와 문서 목록을 확인한 뒤, 작업과 직접 관련된 문서만 추가로 여세요.
 
 | Task | Read first |
 |---|---|
-| 프로젝트 개요, 현재 범위, 빠른 시작, 문서 목록 | `README.md` |
-| 시스템 전체 흐름, 주요 컴포넌트, 운영 전제 | `docs/00-system-design.md` |
-| 프로젝트 분리 이유, 초기 경계, 비범위 | `docs/01-scope.md` |
-| 제품 방향, 단계별 목표, mock/paper/live 전환 기준 | `docs/02-product-plan.md` |
-| 주문 한도, 일손실 한도, 리스크 가드, live 허용 기준 | `docs/03-risk-policy.md` |
-| 운용 철학, 거래 중단 조건, 운영 우선순위 | `docs/04-operating-risk-structure.md` |
-| 거래 대상 universe, 제외 필터, 감시 종목 정책 | `docs/05-universe-policy.md` |
-| 주문 상태, 부분 체결, 취소, 거부, 상태 복구 | `docs/06-order-state-machine.md` |
-| KIS adapter 경계, REST/WebSocket, rate limit, 외부 API 대응 | `docs/07-kis-integration-boundary.md` |
-| 이벤트 로그, 스냅샷, 리포트, 저장소 구조 | `docs/08-storage-design.md` |
-| 첫 전략 선택, 전략 후보 비교, 폐기 기준 | `docs/09-strategy-selection.md` |
-| paper 운영 리포트, 일일 점검 지표, live 준비도 판단 | `docs/10-paper-report.md` |
+| 프로젝트 개요, 빠른 시작, 환경 변수, 문서 목록 | `README.md` |
+| 제품 목표, 사용자, 핵심 기능, MVP 범위 | `docs/PRD.md` |
+| 디렉토리 구조, 데이터 흐름, 상태 관리 패턴 | `docs/ARCHITECTURE.md` |
+| 기술 선택 배경과 트레이드오프 | `docs/ADR.md` |
+| UI 디자인 원칙, 색상·컴포넌트 토큰 | `docs/UI_GUIDE.md` |
 
 작업이 여러 주제를 걸치면 필요한 문서만 조합해서 읽으세요. 문서 확인 후에는 관련 `src/`와 `tests/` 파일을 함께 확인해 실제 구현과 문서가 어긋나지 않는지 검증하세요.
 

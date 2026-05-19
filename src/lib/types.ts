@@ -48,6 +48,12 @@ export const queryRequestSchema = z.object({
 });
 export type QueryRequest = z.infer<typeof queryRequestSchema>;
 
+export const deleteDocumentSchema = z.object({
+  teamSlug: teamSlugSchema,
+  documentId: z.string().uuid("문서 식별자가 올바르지 않습니다"),
+});
+export type DeleteDocumentRequest = z.infer<typeof deleteDocumentSchema>;
+
 /** 도메인 엔티티 */
 export interface Team {
   id: string;

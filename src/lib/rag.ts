@@ -1,5 +1,5 @@
 import { generateAnswer, structureInput } from "./anthropic";
-import { MATCH_COUNT } from "./config";
+import { MATCH_COUNT, MATCH_DISTANCE_THRESHOLD } from "./config";
 import { embed } from "./openai";
 import { buildContent } from "./structuring";
 import { getSupabase } from "./supabase";
@@ -84,8 +84,11 @@ export async function answerQuestion(
     }),
   );
 
-  const answer = await generateAnswer(question, sources);
-  return { answer, sources };
+  // 관련도가 낮은(거리가 먼) 문서는 답변 근거에서 제외해 환각을 줄인다.
+  const relevant = sources.filter((s) => s.distance <= MATCH_DISTANCE_THRESHOLD);
+
+  const answer = await generateAnswer(question, relevant);
+  return { answer, sources: relevant };
 }
 
 /** 주입 콘솔에 보여줄 최근 문서 목록. */
@@ -104,4 +107,20 @@ export async function listRecentDocuments(
 
   if (error) throw new Error(`문서 목록 조회 실패: ${error.message}`);
   return (data as DocumentRecord[]) ?? [];
+}
+
+/** 문서 삭제. team_id 조건으로 다른 팀 문서는 지울 수 없게 막는다. */
+export async function deleteDocument(
+  teamSlug: string,
+  documentId: string,
+): Promise<void> {
+  const team = await requireTeam(teamSlug);
+
+  const { error } = await getSupabase()
+    .from("documents")
+    .delete()
+    .eq("id", documentId)
+    .eq("team_id", team.id);
+
+  if (error) throw new Error(`문서 삭제 실패: ${error.message}`);
 }
