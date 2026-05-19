@@ -1,9 +1,9 @@
 # UI 디자인 가이드
 
 ## 디자인 원칙
-1. {원칙 1 — 예: "도구처럼 보여야 한다. 마케팅 페이지가 아니라 매일 쓰는 대시보드."}
-2. {원칙 2}
-3. {원칙 3}
+1. 도구처럼 보여야 한다 — 마케팅 페이지가 아니라 매일 쓰는 대시보드.
+2. 따뜻한 라이트 톤 고정 — 오프화이트 배경 + 웜 오렌지 포인트 1가지.
+3. 한국어 가독성 우선 — `break-keep`으로 단어 단위 줄바꿈, 넉넉한 행간.
 
 ## AI 슬롭 안티패턴 — 하지 마라
 | 금지 사항 | 이유 |
@@ -17,60 +17,62 @@
 | 배경 gradient orb (blur-3xl 원형) | 모든 AI 랜딩 페이지에 있는 장식 |
 
 ## 색상
+색상은 `globals.css`의 시맨틱 토큰으로 관리하고, Tailwind 클래스명으로 참조한다.
+
 ### 배경
-| 용도 | 값 |
-|------|------|
-| 페이지 | {예: #0a0a0a} |
-| 카드 | {예: #141414} |
+| 용도 | 토큰 / 클래스 | 값 |
+|------|------|------|
+| 페이지 | `bg-surface` | oklch(98.5% 0.008 85) — 오프화이트 |
+| 카드 | `bg-surface-raised` | oklch(100% 0 0) — 화이트 |
 
 ### 텍스트
-| 용도 | 값 |
-|------|------|
-| 주 텍스트 | {예: text-white} |
-| 본문 | {예: text-neutral-300} |
-| 보조 | {예: text-neutral-400} |
-| 비활성 | {예: text-neutral-500} |
+| 용도 | 클래스 | 값 |
+|------|------|------|
+| 주 텍스트 | `text-ink` | oklch(22% 0.02 60) |
+| 보조 텍스트 | `text-ink-soft` | oklch(46% 0.02 60) |
+| 포인트 텍스트 | `text-accent` | oklch(64% 0.16 48) |
 
 ### 데이터/시맨틱 색상
-| 용도 | 값 |
+| 용도 | 클래스 |
 |------|------|
-| {긍정/성공} | {예: #22c55e} |
-| {부정/에러} | {예: #ef4444} |
-| {중립/기본} | {예: #525252} |
+| 포인트 (accent) | `bg-accent` / `text-accent` — 웜 오렌지 |
+| 테두리 | `border-line` — oklch(90% 0.012 75) |
+| 카테고리 배지 | schedule=blue · finance=emerald · member=violet · resource=cyan · general=stone (`lib/categories.ts`) |
 
 ## 컴포넌트
 ### 카드
 ```
-{예: rounded-lg bg-[#141414] border border-neutral-800 p-6}
+rounded-2xl border border-line bg-surface-raised p-6
 ```
 
 ### 버튼
 ```
-Primary: {예: rounded-lg bg-white text-black hover:bg-neutral-200}
-Text:    {예: text-neutral-500 hover:text-neutral-300}
+Primary: rounded-xl bg-accent text-white hover:opacity-90
+Text:    text-ink-soft hover:text-ink
 ```
 
 ### 입력 필드
 ```
-{예: rounded-lg bg-neutral-900 border border-neutral-800 px-4 py-3}
+rounded-xl border border-line bg-surface-raised px-4 py-3
 ```
 
 ## 레이아웃
-- 전체 너비: {예: max-w-5xl}
-- 정렬: {예: 좌측 정렬 기본. 중앙 정렬 금지}
-- 간격: {예: gap-3~4, 섹션 간 space-y-8}
+- 전체 너비: 페이지에 따라 `max-w-3xl`~`max-w-6xl`
+- 정렬: 좌측 정렬 기본
+- 간격: `gap-3~4`, 섹션 간 `space-y-8`~`mt-10`
 
 ## 타이포그래피
 | 용도 | 스타일 |
 |------|--------|
-| 페이지 제목 | {예: text-4xl font-semibold text-white} |
-| 카드 제목 | {예: text-sm font-medium text-neutral-400} |
-| 본문 | {예: text-sm text-neutral-300 leading-relaxed} |
+| 페이지 제목 | `text-3xl~6xl font-extrabold tracking-tight text-ink` |
+| 카드 제목 | `text-xl font-bold text-ink` |
+| 본문 | `text-sm leading-relaxed text-ink-soft` |
+| 라벨/eyebrow | `text-xs font-bold uppercase tracking-wide text-accent` |
 
 ## 애니메이션
-- {허용할 애니메이션만 나열. 예: fade-in (0.4s), slide-up (0.5s)}
-- {그 외 모든 애니메이션 금지}
+- transition은 hover 상태 전환에만 (`transition`, `--ease-out-expo`).
+- 그 외 자동 재생 애니메이션·글로우 효과 금지.
 
 ## 아이콘
-- {예: SVG 인라인, strokeWidth 1.5}
-- {예: 아이콘 컨테이너(둥근 배경 박스)로 감싸지 않는다}
+- SVG 인라인, strokeWidth 1.5.
+- 아이콘 컨테이너(둥근 배경 박스)로 감싸지 않는다.
