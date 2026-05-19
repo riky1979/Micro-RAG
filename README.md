@@ -10,7 +10,7 @@
 
 1. 의존성 설치: `npm install`
 2. `.env.example`를 `.env.local`로 복사하고 키 입력
-3. Supabase 프로젝트에 `supabase/migrations/0001_init.sql` 적용
+3. Supabase 프로젝트에 `supabase/migrations/` 안의 SQL을 순서대로 적용 (`0001_init.sql` → `0002_auth.sql`)
 4. 개발 서버 실행: `npm run dev`
 
 ## 환경 변수
@@ -22,6 +22,7 @@
 | `OPENAI_API_KEY` | 임베딩 전용 (`text-embedding-3-small`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | 서버 전용 DB 키 — 클라이언트 번들 노출 금지 |
+| `AUTH_SECRET` | 세션 쿠키 서명 시크릿(32자+). 예: `openssl rand -hex 32` |
 
 ## 스크립트
 

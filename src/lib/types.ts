@@ -30,10 +30,22 @@ export const teamSlugSchema = z
   .max(40)
   .regex(/^[a-z0-9-]+$/, "팀 식별자는 영소문자·숫자·하이픈만 허용됩니다");
 
-export const createTeamSchema = z.object({
-  slug: teamSlugSchema,
-  name: z.string().trim().min(1, "팀 이름을 입력하세요").max(80),
-});
+const passcodeSchema = z
+  .string()
+  .min(6, "패스코드는 6자 이상이어야 합니다")
+  .max(64);
+
+export const createTeamSchema = z
+  .object({
+    slug: teamSlugSchema,
+    name: z.string().trim().min(1, "팀 이름을 입력하세요").max(80),
+    operatorPasscode: passcodeSchema,
+    memberPasscode: passcodeSchema,
+  })
+  .refine((v) => v.operatorPasscode !== v.memberPasscode, {
+    path: ["memberPasscode"],
+    message: "운영진과 멤버 패스코드는 달라야 합니다",
+  });
 export type CreateTeamRequest = z.infer<typeof createTeamSchema>;
 
 export const injectRequestSchema = z.object({
@@ -53,6 +65,12 @@ export const deleteDocumentSchema = z.object({
   documentId: z.string().uuid("문서 식별자가 올바르지 않습니다"),
 });
 export type DeleteDocumentRequest = z.infer<typeof deleteDocumentSchema>;
+
+export const authRequestSchema = z.object({
+  teamSlug: teamSlugSchema,
+  passcode: z.string().min(1, "패스코드를 입력하세요").max(128),
+});
+export type AuthRequest = z.infer<typeof authRequestSchema>;
 
 /** 도메인 엔티티 */
 export interface Team {

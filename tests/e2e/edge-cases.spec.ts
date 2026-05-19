@@ -8,10 +8,17 @@ import { expect, test } from "@playwright/test";
 test.describe.serial("중복 slug 방지", () => {
   const slug = `dup-${Date.now()}`;
 
+  async function fillCreateForm(page: import("@playwright/test").Page, name: string) {
+    await page.getByPlaceholder("orchestra-2026").fill(slug);
+    await page.getByPlaceholder("아마추어 오케스트라").fill(name);
+    const passcodes = page.getByPlaceholder("6자 이상");
+    await passcodes.nth(0).fill("op-pass-e2e");
+    await passcodes.nth(1).fill("mem-pass-e2e");
+  }
+
   test("첫 번째 팀 생성은 성공한다", async ({ page }) => {
     await page.goto("/");
-    await page.getByPlaceholder("orchestra-2026").fill(slug);
-    await page.getByPlaceholder("아마추어 오케스트라").fill("중복 테스트 팀");
+    await fillCreateForm(page, "중복 테스트 팀");
     await page.getByRole("button", { name: "팀 만들고 시작하기" }).click();
 
     await expect(page).toHaveURL(`/${slug}/inject`);
@@ -19,8 +26,7 @@ test.describe.serial("중복 slug 방지", () => {
 
   test("같은 slug로 재생성 시도하면 에러 메시지를 표시한다", async ({ page }) => {
     await page.goto("/");
-    await page.getByPlaceholder("orchestra-2026").fill(slug);
-    await page.getByPlaceholder("아마추어 오케스트라").fill("이름은 달라도");
+    await fillCreateForm(page, "이름은 달라도");
     await page.getByRole("button", { name: "팀 만들고 시작하기" }).click();
 
     await expect(page.getByText(/이미 사용 중|already/i)).toBeVisible({ timeout: 10_000 });
@@ -36,6 +42,9 @@ test.describe.serial("문서 없는 팀에 질문", () => {
     await page.goto("/");
     await page.getByPlaceholder("orchestra-2026").fill(slug);
     await page.getByPlaceholder("아마추어 오케스트라").fill("빈 팀");
+    const passcodes = page.getByPlaceholder("6자 이상");
+    await passcodes.nth(0).fill("op-pass-e2e");
+    await passcodes.nth(1).fill("mem-pass-e2e");
     await page.getByRole("button", { name: "팀 만들고 시작하기" }).click();
     await expect(page).toHaveURL(`/${slug}/inject`);
 

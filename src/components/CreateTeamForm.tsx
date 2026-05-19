@@ -10,6 +10,8 @@ export function CreateTeamForm() {
   const [mode, setMode] = useState<Mode>("create");
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
+  const [operatorPasscode, setOperatorPasscode] = useState("");
+  const [memberPasscode, setMemberPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -32,13 +34,26 @@ export function CreateTeamForm() {
       setError("팀 이름을 입력하세요.");
       return;
     }
+    if (operatorPasscode.length < 6 || memberPasscode.length < 6) {
+      setError("패스코드는 6자 이상이어야 합니다.");
+      return;
+    }
+    if (operatorPasscode === memberPasscode) {
+      setError("운영진과 멤버 패스코드는 달라야 합니다.");
+      return;
+    }
 
     setBusy(true);
     try {
       const res = await fetch("/api/teams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: cleanSlug, name: name.trim() }),
+        body: JSON.stringify({
+          slug: cleanSlug,
+          name: name.trim(),
+          operatorPasscode,
+          memberPasscode,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -89,15 +104,51 @@ export function CreateTeamForm() {
         </label>
 
         {mode === "create" && (
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-ink">팀 이름</span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="아마추어 오케스트라"
-              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink outline-none placeholder:text-ink-soft/60 focus:border-accent"
-            />
-          </label>
+          <>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-ink">팀 이름</span>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="아마추어 오케스트라"
+                className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink outline-none placeholder:text-ink-soft/60 focus:border-accent"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-ink">
+                운영진 패스코드
+              </span>
+              <input
+                type="password"
+                value={operatorPasscode}
+                onChange={(e) => setOperatorPasscode(e.target.value)}
+                placeholder="6자 이상"
+                autoComplete="new-password"
+                className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink outline-none placeholder:text-ink-soft/60 focus:border-accent"
+              />
+              <span className="mt-1 block text-xs text-ink-soft">
+                주입·삭제용. 운영진만 공유하세요.
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-ink">
+                멤버 패스코드
+              </span>
+              <input
+                type="password"
+                value={memberPasscode}
+                onChange={(e) => setMemberPasscode(e.target.value)}
+                placeholder="6자 이상"
+                autoComplete="new-password"
+                className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink outline-none placeholder:text-ink-soft/60 focus:border-accent"
+              />
+              <span className="mt-1 block text-xs text-ink-soft">
+                질문용. 멤버 전원에게 공유하세요.
+              </span>
+            </label>
+          </>
         )}
 
         {error && (

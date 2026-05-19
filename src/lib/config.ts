@@ -6,6 +6,7 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url("NEXT_PUBLIC_SUPABASE_URL must be a URL"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
+  AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 chars"),
 });
 
 export type Env = z.infer<typeof envSchema>;
