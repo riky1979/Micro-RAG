@@ -17,6 +17,7 @@ function getClient(): Anthropic {
 export async function structureInput(
   text: string,
   model?: string,
+  onUsage?: (input: number, output: number) => void,
 ): Promise<StructuredDoc> {
   const resolvedModel = model ?? getEnv().ANTHROPIC_MODEL;
   const res = await getClient().messages.parse({
@@ -30,6 +31,7 @@ export async function structureInput(
   if (!res.parsed_output) {
     throw new Error("Claude가 입력을 구조화하지 못했습니다.");
   }
+  onUsage?.(res.usage.input_tokens, res.usage.output_tokens);
   return res.parsed_output;
 }
 
@@ -39,6 +41,7 @@ export async function generateAnswer(
   sources: RetrievedSource[],
   model?: string,
   systemPrompt?: string,
+  onUsage?: (input: number, output: number) => void,
 ): Promise<string> {
   const resolvedModel = model ?? getEnv().ANTHROPIC_MODEL;
   const resolvedSystem = systemPrompt ?? ANSWER_SYSTEM;
@@ -60,6 +63,7 @@ export async function generateAnswer(
     ],
   });
 
+  onUsage?.(res.usage.input_tokens, res.usage.output_tokens);
   return res.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)

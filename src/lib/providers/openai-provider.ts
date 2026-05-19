@@ -3,6 +3,7 @@ import { getEnv } from "../config";
 import type { LLMProvider } from "../llm";
 import { ANSWER_SYSTEM, STRUCTURE_SYSTEM } from "../prompts";
 import { structuredDocSchema, type RetrievedSource, type StructuredDoc } from "../types";
+import type { UsageCallback } from "../usage";
 
 // entities를 strict 모드에서 지원하려면 배열로 표현 후 변환한다
 const STRUCTURE_SCHEMA = {
@@ -47,6 +48,7 @@ export class OpenAIProvider implements LLMProvider {
   constructor(
     private readonly model: string,
     private readonly systemPrompt: string | null = null,
+    private readonly onUsage?: UsageCallback,
   ) {}
 
   async structureInput(text: string): Promise<StructuredDoc> {
@@ -62,6 +64,10 @@ export class OpenAIProvider implements LLMProvider {
         json_schema: { name: "structured_doc", strict: true, schema: STRUCTURE_SCHEMA },
       },
     });
+
+    if (res.usage) {
+      this.onUsage?.({ provider: "openai", model: this.model, operation: "structure", input_tokens: res.usage.prompt_tokens, output_tokens: res.usage.completion_tokens });
+    }
 
     const content = res.choices[0]?.message?.content;
     if (!content) throw new Error("OpenAI가 입력을 구조화하지 못했습니다.");
@@ -95,19 +101,25 @@ export class OpenAIProvider implements LLMProvider {
       ],
     });
 
+    if (res.usage) {
+      this.onUsage?.({ provider: "openai", model: this.model, operation: "answer", input_tokens: res.usage.prompt_tokens, output_tokens: res.usage.completion_tokens });
+    }
     return res.choices[0]?.message?.content?.trim() ?? "";
   }
 
   generateAnswerStream(question: string, sources: RetrievedSource[]): ReadableStream<string> {
     const system = this.systemPrompt ?? ANSWER_SYSTEM;
+    const onUsage = this.onUsage;
+    const model = this.model;
     const context = sources.length
       ? sources.map((s, i) => `[${i + 1}] (${s.category}) ${s.content}`).join("\n")
       : "(등록된 관련 정보 없음)";
 
     const streamPromise = getClient().chat.completions.create({
-      model: this.model,
+      model,
       max_tokens: 1024,
       stream: true,
+      stream_options: { include_usage: true },
       messages: [
         { role: "system", content: system },
         {
@@ -124,6 +136,9 @@ export class OpenAIProvider implements LLMProvider {
           for await (const chunk of stream) {
             const text = chunk.choices[0]?.delta?.content;
             if (text) controller.enqueue(text);
+            if (chunk.usage) {
+              onUsage?.({ provider: "openai", model, operation: "answer", input_tokens: chunk.usage.prompt_tokens, output_tokens: chunk.usage.completion_tokens });
+            }
           }
           controller.close();
         } catch (err) {
