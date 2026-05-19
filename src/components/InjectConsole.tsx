@@ -29,6 +29,26 @@ export function InjectConsole({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<StructuredDoc | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/documents/${id}?teamSlug=${encodeURIComponent(teamSlug)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error ?? "삭제에 실패했습니다.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("네트워크 오류가 발생했습니다.");
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -115,11 +135,16 @@ export function InjectConsole({
         ) : (
           <div className="space-y-3">
             {initialDocs.map((doc) => (
-              <StructuredCard
-                key={doc.id}
-                doc={doc.structured}
-                meta={formatDate(doc.created_at)}
-              />
+              <div key={doc.id} className="group relative">
+                <StructuredCard doc={doc.structured} meta={formatDate(doc.created_at)} />
+                <button
+                  onClick={() => handleDelete(doc.id)}
+                  disabled={deleting === doc.id}
+                  className="absolute right-3 top-3 hidden rounded-lg px-2 py-1 text-xs text-ink-soft/60 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-40 group-hover:flex"
+                >
+                  {deleting === doc.id ? "삭제 중…" : "삭제"}
+                </button>
+              </div>
             ))}
           </div>
         )}

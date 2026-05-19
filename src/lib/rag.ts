@@ -90,6 +90,20 @@ export async function answerQuestion(
   return { answer, sources };
 }
 
+/** 팀 소속 문서 하나를 삭제한다. 팀 소속이 아닌 문서는 404. */
+export async function deleteDocument(teamSlug: string, documentId: string): Promise<void> {
+  const team = await requireTeam(teamSlug);
+
+  const { error, count } = await getSupabase()
+    .from("documents")
+    .delete({ count: "exact" })
+    .eq("id", documentId)
+    .eq("team_id", team.id);
+
+  if (error) throw new Error(`문서 삭제 실패: ${error.message}`);
+  if (count === 0) throw new Error("문서를 찾을 수 없습니다.");
+}
+
 /** 주입 콘솔에 보여줄 최근 문서 목록. */
 export async function listRecentDocuments(
   teamSlug: string,
