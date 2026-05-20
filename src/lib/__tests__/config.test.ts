@@ -6,6 +6,7 @@ const VALID_ENV = {
   OPENAI_API_KEY: "test-openai-key",
   NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
   SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key",
+  AUTH_SECRET: "0123456789abcdef0123456789abcdef",
 };
 
 describe("getEnv", () => {
@@ -42,6 +43,12 @@ describe("getEnv", () => {
 
   test("NEXT_PUBLIC_SUPABASE_URL이 유효한 URL이 아니면 에러를 던진다", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "not-a-url");
+    const { getEnv } = await import("../config");
+    expect(() => getEnv()).toThrow("Invalid environment configuration");
+  });
+
+  test("AUTH_SECRET이 32자 미만이면 에러를 던진다", async () => {
+    vi.stubEnv("AUTH_SECRET", "too-short");
     const { getEnv } = await import("../config");
     expect(() => getEnv()).toThrow("Invalid environment configuration");
   });

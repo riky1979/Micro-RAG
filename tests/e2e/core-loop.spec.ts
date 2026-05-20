@@ -11,6 +11,9 @@ test.describe.serial("Micro-RAG 핵심 루프", () => {
     await page.goto("/");
     await page.getByPlaceholder("orchestra-2026").fill(slug);
     await page.getByPlaceholder("아마추어 오케스트라").fill("E2E 테스트 팀");
+    const passcodes = page.getByPlaceholder("6자 이상");
+    await passcodes.nth(0).fill("op-pass-e2e");
+    await passcodes.nth(1).fill("mem-pass-e2e");
     await page.getByRole("button", { name: "팀 만들고 시작하기" }).click();
 
     await expect(page).toHaveURL(`/${slug}/inject`);

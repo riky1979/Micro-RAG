@@ -5,19 +5,21 @@
 src/
 ├── app/                  # Next.js App Router: 페이지 + API 라우트
 │   ├── page.tsx          # 랜딩 + 팀 생성
-│   ├── [team]/           # 팀 허브 / inject / ask 페이지
-│   └── api/              # teams · inject · query 라우트 핸들러
+│   ├── [team]/           # 팀 허브 / inject / ask / login 페이지
+│   └── api/              # teams · auth · inject · query 라우트 핸들러
+├── middleware.ts         # /[team]/* 인증 게이트 (edge runtime)
 ├── components/           # 클라이언트 UI 컴포넌트
 └── lib/                  # 도메인 로직 + 외부 API 래퍼
     ├── rag.ts            # 주입/조회 오케스트레이션
+    ├── auth.ts           # 패스코드 해시 + 세션 쿠키 서명/검증
     ├── anthropic.ts      # Claude 구조화·답변 생성
     ├── openai.ts         # 임베딩
     ├── supabase.ts       # 서버 전용 DB 클라이언트
-    ├── teams.ts          # 팀 조회·생성
+    ├── teams.ts          # 팀 조회·생성·시크릿
     ├── structuring.ts    # 구조화 레코드 → 검색 텍스트 평탄화
     ├── types.ts          # Zod 스키마 + 도메인 타입
     └── config.ts · errors.ts · api.ts · categories.ts
-supabase/migrations/      # DB 스키마 + pgvector 검색 함수
+supabase/migrations/      # DB 스키마 + pgvector + 인증 컬럼
 tests/e2e/                # Playwright E2E
 ```
 
@@ -29,14 +31,18 @@ tests/e2e/                # Playwright E2E
 
 ## 데이터 흐름
 ```
-주입:  운영진 텍스트 → POST /api/inject → injectDocument()
+인증:  /[team]/login 패스코드 → POST /api/auth → scrypt 검증
+       → HMAC 서명 쿠키 mr_auth_<slug> 발급(role: operator|member)
+       → middleware가 /[team]/* 접근 시 쿠키 검증, API 라우트가 역할 검증
+
+주입:  운영진 텍스트 → POST /api/inject (operator) → injectDocument()
        → Claude 구조화 → buildContent() → OpenAI 임베딩 → Supabase documents
 
-조회:  멤버 질문 → POST /api/query → answerQuestion()
+조회:  멤버 질문 → POST /api/query (member 이상) → answerQuestion()
        → OpenAI 임베딩 → match_documents()(pgvector, 팀 범위)
        → 관련도 임계값 필터 → Claude 답변
 
-삭제:  문서 카드 → DELETE /api/inject → deleteDocument() → Supabase
+삭제:  문서 카드 → DELETE /api/inject (operator) → deleteDocument() → Supabase
 ```
 
 ## 상태 관리
